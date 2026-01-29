@@ -1,23 +1,286 @@
 # SAP BTP + Terraform Demo
 
-Automate SAP BTP environment provisioning with Terraform. Clone, configure, deploy.
+Automate SAP BTP environment provisioning with Infrastructure-as-Code.
 
 ---
 
 ## Table of Contents
 
-- [Quick Start](#quick-start)
-- [Configuration Reference](#configuration-reference)
-- [What Gets Created](#what-gets-created)
-- [Project Files](#project-files)
-- [Troubleshooting](#troubleshooting)
-- [Customization](#customization)
+- [Overview](#overview)
 - [What is Terraform?](#what-is-terraform)
 - [What is SAP BTP?](#what-is-sap-btp)
+- [What This Demo Does](#what-this-demo-does)
+- [Key Advantages](#key-advantages)
+- [Quick Start](#quick-start)
+- [Configuration Reference](#configuration-reference)
+- [Project Files](#project-files)
 - [How the Code Works](#how-the-code-works)
-- [The Business Value](#the-business-value)
+- [Troubleshooting](#troubleshooting)
+- [Customization](#customization)
 - [Demo Script for Presentations](#demo-script-for-presentations)
 - [Further Learning](#further-learning)
+
+---
+
+## Overview
+
+This demo showcases the power of **Infrastructure-as-Code (IaC)** by automating the provisioning of **SAP Business Technology Platform (BTP)** environments using **Terraform**.
+
+### The Scenario: Nexaminds Customer Onboarding
+
+Imagine you work at **Nexaminds**, a company that needs to onboard enterprise customers to SAP BTP. Each customer requires their own isolated cloud environment with:
+
+- Integration services for connecting to external systems
+- Authorization and security configuration
+- Application hosting capabilities
+- Proper user roles and permissions
+
+### The Problem
+
+Setting up a customer environment in SAP BTP **manually** requires:
+
+1. Logging into the SAP BTP Cockpit
+2. Creating a new subaccount
+3. Navigating to Entitlements and assigning service plans
+4. Creating service instances
+5. Configuring role collections and assigning users
+6. Waiting for each service to provision
+
+**This process involves 20+ screens and takes 2-4 hours per customer.**
+
+For 50 customers, that's over **100 hours** of repetitive manual work.
+
+### The Solution
+
+With **Terraform**, we define the entire infrastructure in code:
+
+```hcl
+resource "btp_subaccount" "customer" {
+  name      = "Nexaminds Customer Portal"
+  subdomain = "nexaminds-portal"
+  region    = "us10"
+}
+
+resource "btp_subaccount_entitlement" "destination" {
+  subaccount_id = btp_subaccount.customer.id
+  service_name  = "destination"
+  plan_name     = "lite"
+}
+```
+
+Then deploy with a single command:
+
+```bash
+terraform apply
+```
+
+**Result: ~2 minutes per customer, 100% consistent, fully repeatable.**
+
+---
+
+## What is Terraform?
+
+**Terraform** is an open-source Infrastructure-as-Code (IaC) tool developed by HashiCorp. It has become the industry standard for defining, provisioning, and managing cloud infrastructure across any platform.
+
+### The Core Idea
+
+Instead of clicking through web consoles to create resources, you write code that describes what you want. Terraform then:
+
+1. **Reads** your configuration files
+2. **Plans** what changes need to be made
+3. **Applies** those changes via cloud provider APIs
+4. **Tracks** what it created in a state file
+
+### Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Declarative Syntax** | You describe the desired end state, not the steps to get there. Terraform figures out the "how". |
+| **HCL (HashiCorp Configuration Language)** | A human-readable language designed for infrastructure. Easy to learn, easy to maintain. |
+| **Providers** | Plugins that connect Terraform to cloud platforms. There are 3,000+ providers for AWS, Azure, GCP, SAP BTP, Kubernetes, and more. |
+| **Resources** | The building blocks of infrastructure (VMs, databases, subaccounts, etc.). |
+| **State** | Terraform tracks what it has created in a state file, enabling updates, deletions, and drift detection. |
+| **Plan** | A preview of what Terraform will do before it does it. No surprises. |
+
+### How Terraform Works
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          YOUR COMPUTER                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐              │
+│   │  main.tf     │    │ variables.tf │    │ providers.tf │              │
+│   │  (Resources) │    │  (Inputs)    │    │  (Config)    │              │
+│   └──────┬───────┘    └──────┬───────┘    └──────┬───────┘              │
+│          └───────────────────┼───────────────────┘                       │
+│                              ▼                                           │
+│                    ┌──────────────────┐                                  │
+│                    │  terraform init  │  ← Downloads providers           │
+│                    └────────┬─────────┘                                  │
+│                             ▼                                            │
+│                    ┌──────────────────┐                                  │
+│                    │  terraform plan  │  ← Shows what will change        │
+│                    └────────┬─────────┘                                  │
+│                             ▼                                            │
+│                    ┌──────────────────┐                                  │
+│                    │  terraform apply │  ← Executes the changes          │
+│                    └────────┬─────────┘                                  │
+└─────────────────────────────┼────────────────────────────────────────────┘
+                              │ HTTPS API Calls
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        SAP BTP CLOUD                                     │
+│   ┌─────────────────────────────────────────────────────────────────┐   │
+│   │                    Global Account                                │   │
+│   │   ┌─────────────────────────────────────────────────────────┐   │   │
+│   │   │              Subaccount (Created by Terraform)           │   │   │
+│   │   │   • Services  • Subscriptions  • Role Assignments        │   │   │
+│   │   └─────────────────────────────────────────────────────────┘   │   │
+│   └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## What is SAP BTP?
+
+**SAP Business Technology Platform (BTP)** is SAP's unified cloud platform that brings together application development, data management, analytics, AI, and integration capabilities. It's the foundation for extending and integrating SAP solutions in the cloud.
+
+### Why SAP BTP Exists
+
+Organizations using SAP systems (S/4HANA, SuccessFactors, Ariba, etc.) need a way to:
+
+- **Extend** SAP applications with custom functionality
+- **Integrate** SAP with non-SAP systems
+- **Analyze** data across the enterprise
+- **Automate** business processes
+- **Build** new cloud-native applications
+
+### BTP Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         GLOBAL ACCOUNT                                   │
+│                    (Organization Level)                                  │
+│  • Owned by your organization                                           │
+│  • Contains all entitlements (service quotas)                           │
+│  • Manages billing and contracts                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐          │
+│  │   SUBACCOUNT    │  │   SUBACCOUNT    │  │   SUBACCOUNT    │          │
+│  │   (Customer A)  │  │   (Customer B)  │  │   (Dev/Test)    │          │
+│  │  ┌───────────┐  │  │  ┌───────────┐  │  │  ┌───────────┐  │          │
+│  │  │ Services  │  │  │  │ Services  │  │  │  │ Services  │  │          │
+│  │  │ Apps      │  │  │  │ Apps      │  │  │  │ Apps      │  │          │
+│  │  │ Users     │  │  │  │ Users     │  │  │  │ Users     │  │          │
+│  │  └───────────┘  │  │  └───────────┘  │  │  └───────────┘  │          │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key BTP Capabilities
+
+| Capability | Description | Example Services |
+|------------|-------------|------------------|
+| **Application Development** | Build apps with pro-code or low-code | Business Application Studio, SAP Build Apps |
+| **Integration** | Connect SAP and non-SAP systems | Integration Suite, Destination Service |
+| **Data & Analytics** | Store and analyze enterprise data | HANA Cloud, Analytics Cloud |
+| **AI & Automation** | Embed intelligence in processes | AI Core, Build Process Automation |
+| **User Experience** | Create unified portals | SAP Build Work Zone |
+
+### BTP Terminology
+
+| SAP BTP Term | Simple Explanation | AWS Equivalent |
+|--------------|-------------------|----------------|
+| **Global Account** | Organization's top-level account | AWS Organization |
+| **Subaccount** | Isolated environment for a project | AWS Account |
+| **Directory** | Folder to organize subaccounts | Organizational Unit |
+| **Entitlement** | Permission to use a service | Service Quota |
+| **Service Plan** | Tier/variant of a service | Pricing Tier |
+| **Service Instance** | Provisioned instance of a service | RDS Instance |
+| **Subscription** | Activated SaaS application | Marketplace Subscription |
+| **Role Collection** | Bundle of user permissions | IAM Role |
+| **Destination** | Connection config to external systems | Secrets Manager |
+
+---
+
+## What This Demo Does
+
+This demo automates the creation of a complete SAP BTP customer environment. When you run `terraform apply`, it:
+
+### Step-by-Step Automation
+
+| Step | What Terraform Does | Manual Equivalent |
+|------|---------------------|-------------------|
+| 1 | Creates a new subaccount with labels | Navigate to Cockpit → Create Subaccount → Fill form |
+| 2 | Assigns service entitlements | Go to Entitlements → Add Service Plans → Select each |
+| 3 | Creates service instances | Go to Service Marketplace → Create Instance → Configure |
+| 4 | Assigns admin roles to your user | Go to Role Collections → Find role → Assign user |
+
+### Resources Created
+
+```
+Nexaminds Customer Portal (Subaccount)
+│
+├── Service Entitlements (Permissions)
+│   ├── Destination Service (lite) — Connect to external systems
+│   ├── XSUAA (application) — Authorization & trust management
+│   └── HTML5 App Repository (app-host) — Host UI applications
+│
+├── Service Instances (Provisioned)
+│   └── Destination Instance — Ready for creating destinations
+│
+└── Role Assignments
+    └── Subaccount Administrator → Your user
+```
+
+### Time Comparison
+
+| Approach | Time per Environment | For 50 Customers |
+|----------|---------------------|------------------|
+| **Manual** | 2-4 hours | 100-200 hours |
+| **Terraform** | ~2 minutes | ~1.7 hours |
+| **Savings** | 98% reduction | 98+ hours saved |
+
+---
+
+## Key Advantages
+
+### Why Use Terraform for SAP BTP?
+
+| Advantage | Description |
+|-----------|-------------|
+| **Speed** | Provision environments in minutes instead of hours |
+| **Consistency** | Every environment is identical—no human errors |
+| **Repeatability** | Run the same code 100 times, get 100 identical environments |
+| **Version Control** | Infrastructure lives in Git—track changes, review in PRs |
+| **Documentation** | The code IS the documentation—always up to date |
+| **Audit Trail** | Full history of who changed what and when |
+| **Rollback** | Made a mistake? Run `terraform destroy` and start fresh |
+| **Collaboration** | Teams can work together on infrastructure with proper workflows |
+| **Scalability** | Onboard 1 customer or 1000 with the same effort |
+
+### Terraform vs. Manual Configuration
+
+| Aspect | Manual (BTP Cockpit) | Terraform |
+|--------|---------------------|-----------|
+| **Time** | 2-4 hours | ~2 minutes |
+| **Consistency** | Human error prone | 100% consistent |
+| **Documentation** | Requires separate docs | Code IS documentation |
+| **Repeatability** | Start from scratch | Run unlimited times |
+| **Rollback** | Manual, error-prone | `terraform destroy` |
+| **Audit Trail** | Screenshots? Notes? | Full Git history |
+| **Scaling** | Linear time increase | Parallel execution |
+
+### Business Value Calculator
+
+| Scenario | Manual Time | Terraform Time | Time Saved |
+|----------|-------------|----------------|------------|
+| 1 customer | 3 hours | 2 minutes | 2.97 hours |
+| 10 customers | 30 hours | 20 minutes | 29.7 hours |
+| 50 customers | 150 hours | 1.7 hours | 148.3 hours |
+| 100 customers | 300 hours | 3.3 hours | 296.7 hours |
 
 ---
 
@@ -129,31 +392,6 @@ region                  = "us10"                # Optional (default: us10)
 
 ---
 
-## What Gets Created
-
-When you run `terraform apply`, this demo creates:
-
-```
-Nexaminds Customer Portal (Subaccount)
-│
-├── Service Entitlements
-│   ├── Destination Service (lite)
-│   ├── XSUAA (application)
-│   └── HTML5 App Repository (app-host)
-│
-├── Service Instances
-│   └── Destination Instance
-│
-└── Role Assignments
-    └── Subaccount Administrator → Your user
-```
-
-**Time comparison:**
-- Manual setup: ~2-4 hours
-- With Terraform: ~2 minutes
-
----
-
 ## Project Files
 
 ```
@@ -261,169 +499,6 @@ resource "btp_subaccount_entitlement" "hana" {
 
 ---
 
-## What is Terraform?
-
-### Introduction
-
-**Terraform** is an open-source Infrastructure-as-Code (IaC) tool developed by HashiCorp. It has become the industry standard for defining, provisioning, and managing cloud infrastructure across any platform.
-
-### The Core Idea
-
-Instead of clicking through web consoles to create resources, you write code that describes what you want. Terraform then:
-
-1. **Reads** your configuration files
-2. **Plans** what changes need to be made
-3. **Applies** those changes via cloud provider APIs
-4. **Tracks** what it created in a state file
-
-### Key Concepts
-
-| Concept | Description |
-|---------|-------------|
-| **Declarative Syntax** | You describe the desired end state, not the steps to get there. Terraform figures out the "how". |
-| **HCL (HashiCorp Configuration Language)** | A human-readable language designed for infrastructure. Easy to learn, easy to maintain. |
-| **Providers** | Plugins that connect Terraform to cloud platforms. There are 3,000+ providers for AWS, Azure, GCP, SAP BTP, Kubernetes, and more. |
-| **Resources** | The building blocks of infrastructure (VMs, databases, subaccounts, etc.). |
-| **State** | Terraform tracks what it has created in a state file, enabling updates, deletions, and drift detection. |
-| **Plan** | A preview of what Terraform will do before it does it. No surprises. |
-
-### How Terraform Works
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          YOUR COMPUTER                                   │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐              │
-│   │  main.tf     │    │ variables.tf │    │ providers.tf │              │
-│   │  (Resources) │    │  (Inputs)    │    │  (Config)    │              │
-│   └──────┬───────┘    └──────┬───────┘    └──────┬───────┘              │
-│          └───────────────────┼───────────────────┘                       │
-│                              ▼                                           │
-│                    ┌──────────────────┐                                  │
-│                    │  terraform init  │  ← Downloads providers           │
-│                    └────────┬─────────┘                                  │
-│                             ▼                                            │
-│                    ┌──────────────────┐                                  │
-│                    │  terraform plan  │  ← Shows what will change        │
-│                    └────────┬─────────┘                                  │
-│                             ▼                                            │
-│                    ┌──────────────────┐                                  │
-│                    │  terraform apply │  ← Executes the changes          │
-│                    └────────┬─────────┘                                  │
-└─────────────────────────────┼────────────────────────────────────────────┘
-                              │ HTTPS API Calls
-                              ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        SAP BTP CLOUD                                     │
-│   ┌─────────────────────────────────────────────────────────────────┐   │
-│   │                    Global Account                                │   │
-│   │   ┌─────────────────────────────────────────────────────────┐   │   │
-│   │   │              Subaccount (Created by Terraform)           │   │   │
-│   │   │   • Services  • Subscriptions  • Role Assignments        │   │   │
-│   │   └─────────────────────────────────────────────────────────┘   │   │
-│   └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Why Organizations Choose Terraform
-
-| Benefit | Description |
-|---------|-------------|
-| **Multi-Cloud** | Manage AWS, Azure, GCP, SAP with one tool |
-| **Version Control** | Store infrastructure in Git, review in PRs |
-| **Collaboration** | Teams work together with proper workflows |
-| **Idempotency** | Same code = same result, every time |
-| **Modularity** | Create reusable modules for common patterns |
-| **Automation** | Integrate with CI/CD pipelines |
-
-### Terraform vs. Manual Configuration
-
-| Aspect | Manual (BTP Cockpit) | Terraform |
-|--------|---------------------|-----------|
-| **Time** | 2-4 hours | ~2 minutes |
-| **Consistency** | Human error prone | 100% consistent |
-| **Documentation** | Requires separate docs | Code IS documentation |
-| **Repeatability** | Start from scratch | Run unlimited times |
-| **Rollback** | Manual, error-prone | `terraform destroy` |
-| **Audit Trail** | Screenshots? Notes? | Full Git history |
-
----
-
-## What is SAP BTP?
-
-### Introduction
-
-**SAP Business Technology Platform (BTP)** is SAP's unified cloud platform that brings together application development, data management, analytics, AI, and integration capabilities. It's the foundation for extending and integrating SAP solutions in the cloud.
-
-### Why SAP BTP Exists
-
-Organizations using SAP systems (S/4HANA, SuccessFactors, Ariba, etc.) need a way to:
-
-- **Extend** SAP applications with custom functionality
-- **Integrate** SAP with non-SAP systems
-- **Analyze** data across the enterprise
-- **Automate** business processes
-- **Build** new cloud-native applications
-
-### BTP Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         GLOBAL ACCOUNT                                   │
-│                    (Organization Level)                                  │
-│  • Owned by your organization                                           │
-│  • Contains all entitlements (service quotas)                           │
-│  • Manages billing and contracts                                        │
-├─────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐          │
-│  │   SUBACCOUNT    │  │   SUBACCOUNT    │  │   SUBACCOUNT    │          │
-│  │   (Customer A)  │  │   (Customer B)  │  │   (Dev/Test)    │          │
-│  │  ┌───────────┐  │  │  ┌───────────┐  │  │  ┌───────────┐  │          │
-│  │  │ Services  │  │  │  │ Services  │  │  │  │ Services  │  │          │
-│  │  │ Apps      │  │  │  │ Apps      │  │  │  │ Apps      │  │          │
-│  │  │ Users     │  │  │  │ Users     │  │  │  │ Users     │  │          │
-│  │  └───────────┘  │  │  └───────────┘  │  │  └───────────┘  │          │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Key BTP Capabilities
-
-| Capability | Description | Example Services |
-|------------|-------------|------------------|
-| **Application Development** | Build apps with pro-code or low-code | Business Application Studio, SAP Build Apps |
-| **Integration** | Connect SAP and non-SAP systems | Integration Suite, Destination Service |
-| **Data & Analytics** | Store and analyze enterprise data | HANA Cloud, Analytics Cloud |
-| **AI & Automation** | Embed intelligence in processes | AI Core, Build Process Automation |
-| **User Experience** | Create unified portals | SAP Build Work Zone |
-
-### BTP Terminology
-
-| SAP BTP Term | Simple Explanation | AWS Equivalent |
-|--------------|-------------------|----------------|
-| **Global Account** | Organization's top-level account | AWS Organization |
-| **Subaccount** | Isolated environment for a project | AWS Account |
-| **Directory** | Folder to organize subaccounts | Organizational Unit |
-| **Entitlement** | Permission to use a service | Service Quota |
-| **Service Plan** | Tier/variant of a service | Pricing Tier |
-| **Service Instance** | Provisioned instance of a service | RDS Instance |
-| **Subscription** | Activated SaaS application | Marketplace Subscription |
-| **Role Collection** | Bundle of user permissions | IAM Role |
-| **Destination** | Connection config to external systems | Secrets Manager |
-
-### Trial vs. Enterprise Accounts
-
-| Feature | Trial | Enterprise |
-|---------|-------|------------|
-| **Cost** | Free | Paid |
-| **Duration** | 90 days | Unlimited |
-| **Services** | Limited | Full catalog |
-| **Regions** | us10, eu10, ap21 | All |
-| **Support** | Community | SAP Support |
-
----
-
 ## How the Code Works
 
 ### providers.tf — Connecting to SAP BTP
@@ -525,30 +600,6 @@ resource "btp_subaccount_role_collection_assignment" "admin" {
          ▼
 4. Assign Roles (needs subaccount)
 ```
-
----
-
-## The Business Value
-
-### Time Savings Calculator
-
-| Scenario | Manual Time | Terraform Time | Savings |
-|----------|------------|----------------|---------|
-| 1 customer | 3 hours | 2 minutes | 2.97 hours |
-| 10 customers | 30 hours | 20 minutes | 29.7 hours |
-| 50 customers | 150 hours | 1.7 hours | 148.3 hours |
-| 100 customers | 300 hours | 3.3 hours | 296.7 hours |
-
-### Beyond Time Savings
-
-| Benefit | Description |
-|---------|-------------|
-| **Consistency** | Every customer gets exactly the same setup |
-| **Compliance** | Infrastructure changes tracked in Git |
-| **Disaster Recovery** | Redeploy in minutes, not hours |
-| **Knowledge Transfer** | New team members read the code |
-| **Testing** | Create identical dev/test/prod environments |
-| **Self-Service** | Enable teams to provision with guardrails |
 
 ---
 
