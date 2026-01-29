@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(Remove-Item \"c:\\\\Users\\\\Bernardo\\\\sap-btp-playground\\\\OVERVIEW.md\")"
-    ]
-  }
-}
