@@ -24,5 +24,6 @@ Thumbs.db
 *.log
 crash.log
 
-.claude
+
+*.claude
 
