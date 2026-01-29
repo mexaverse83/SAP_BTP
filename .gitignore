@@ -11,6 +11,13 @@ terraform.tfvars
 *.auto.tfvars
 secrets.tf
 
+# Customer configurations (may contain sensitive data)
+customers/*.tfvars
+!customers/customer.tfvars.example
+
+# Customer state directories
+customers/*/
+
 # IDE
 .idea/
 .vscode/

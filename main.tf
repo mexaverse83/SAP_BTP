@@ -30,15 +30,15 @@ data "btp_globalaccount" "this" {}
 # A subaccount is an isolated environment (like an AWS account)
 
 resource "btp_subaccount" "customer" {
-  name        = "Nexaminds Customer Portal"
-  subdomain   = "Nexaminds-portal-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+  name        = "${var.customer_name} Portal"
+  subdomain   = "${var.customer_id}-portal-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   region      = var.region
-  description = "Customer environment created by Terraform"
+  description = "Customer environment for ${var.customer_name} - created by Terraform"
 
   labels = {
     "managed-by"  = ["terraform"]
     "environment" = ["demo"]
-    "customer"    = ["Nexaminds"]
+    "customer"    = [var.customer_id]
   }
 
   # Prevent subdomain from changing on every apply
@@ -111,6 +111,61 @@ data "btp_subaccount_service_plan" "destination" {
 # }
 
 # =============================================================================
+# OPTIONAL SERVICES (Enable per customer via additional_services list)
+# =============================================================================
+
+# Service catalog - maps service keys to SAP BTP service details
+locals {
+  service_catalog = {
+    cf_runtime = {
+      service_name = "APPLICATION_RUNTIME"
+      plan_name    = "MEMORY"
+      amount       = 1
+    }
+    hana_cloud = {
+      service_name = "hana-cloud"
+      plan_name    = "hana"
+      amount       = null
+    }
+    connectivity = {
+      service_name = "connectivity"
+      plan_name    = "lite"
+      amount       = null
+    }
+    bas = {
+      service_name = "sapappstudio"
+      plan_name    = "standard-edition"
+      amount       = null
+    }
+    workzone = {
+      service_name = "SAPLaunchpad"
+      plan_name    = "standard"
+      amount       = null
+    }
+    aicore = {
+      service_name = "aicore"
+      plan_name    = "extended"
+      amount       = null
+    }
+  }
+
+  # Filter to only services that exist in the catalog
+  enabled_services = {
+    for svc in var.additional_services : svc => local.service_catalog[svc]
+    if contains(keys(local.service_catalog), svc)
+  }
+}
+
+# Create entitlements for each service in the list
+resource "btp_subaccount_entitlement" "additional" {
+  for_each      = local.enabled_services
+  subaccount_id = btp_subaccount.customer.id
+  service_name  = each.value.service_name
+  plan_name     = each.value.plan_name
+  amount        = each.value.amount
+}
+
+# =============================================================================
 # ENTERPRISE ACCOUNT ADDITIONS (Uncomment if you have enterprise entitlements)
 # =============================================================================
 
@@ -179,16 +234,17 @@ output "demo_complete" {
   value = <<-EOT
 
   ================================================================
-       CUSTOMER ENVIRONMENT DEPLOYED SUCCESSFULLY!
+       ${upper(var.customer_name)} ENVIRONMENT DEPLOYED!
   ================================================================
 
   What Terraform created:
 
-    1. Subaccount: ${btp_subaccount.customer.name}
-    2. Region: ${btp_subaccount.customer.region}
-    3. Services: Destination, XSUAA, HTML5 Repo (entitled)
-    4. Destination service instance created
-    5. Admin access: ${var.btp_username} (automatic as creator)
+    1. Customer: ${var.customer_name}
+    2. Subaccount: ${btp_subaccount.customer.name}
+    3. Region: ${btp_subaccount.customer.region}
+    4. Services: Destination, XSUAA, HTML5 Repo (entitled)
+    5. Destination service instance created
+    6. Admin access: ${var.btp_username} (automatic as creator)
 
   Next steps:
     - Open BTP Cockpit to see your new subaccount
