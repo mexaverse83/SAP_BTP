@@ -97,11 +97,18 @@ data "btp_subaccount_service_plan" "destination" {
 # -----------------------------------------------------------------------------
 # Give users access to manage destinations
 
-resource "btp_subaccount_role_collection_assignment" "subaccount_admin" {
-  subaccount_id        = btp_subaccount.customer.id
-  role_collection_name = "Subaccount Administrator"
-  user_name            = var.btp_username
-}
+# NOTE: Role assignment for the deploying user is commented out because:
+# 1. The user who creates the subaccount automatically gets admin access
+# 2. SAP BTP prevents removing the "last administrator" on destroy
+# 3. This causes terraform destroy to fail
+#
+# Uncomment this if you need to assign roles to OTHER users (not the deploying user)
+#
+# resource "btp_subaccount_role_collection_assignment" "subaccount_admin" {
+#   subaccount_id        = btp_subaccount.customer.id
+#   role_collection_name = "Subaccount Administrator"
+#   user_name            = var.btp_username
+# }
 
 # =============================================================================
 # ENTERPRISE ACCOUNT ADDITIONS (Uncomment if you have enterprise entitlements)
@@ -181,7 +188,7 @@ output "demo_complete" {
     2. Region: ${btp_subaccount.customer.region}
     3. Services: Destination, XSUAA, HTML5 Repo (entitled)
     4. Destination service instance created
-    5. Admin role assigned to ${var.btp_username}
+    5. Admin access: ${var.btp_username} (automatic as creator)
 
   Next steps:
     - Open BTP Cockpit to see your new subaccount
