@@ -42,11 +42,28 @@ variable "additional_services" {
   type        = list(string)
   default     = []
 
-  # Available services:
-  # - "cf_runtime"    : Cloud Foundry runtime for deploying apps
-  # - "hana_cloud"    : SAP HANA Cloud database (enterprise only)
-  # - "connectivity"  : On-premise system connectivity
-  # - "bas"           : Business Application Studio (enterprise only)
-  # - "workzone"      : SAP Build Work Zone (enterprise only)
-  # - "aicore"        : SAP AI Core (enterprise only)
+  # Available services (see locals.tf for full catalog):
+  #
+  # Runtime & Development:
+  # - "cf_runtime"          : Cloud Foundry runtime
+  # - "bas"                 : Business Application Studio (cloud IDE)
+  #
+  # Data & Analytics:
+  # - "hana_cloud"          : SAP HANA Cloud database
+  # - "analytics_cloud"     : SAP Analytics Cloud (BI + planning)
+  # - "datasphere"          : SAP Datasphere (data orchestration)
+  #
+  # Integration & Connectivity:
+  # - "integration_suite"   : SAP Integration Suite (iPaaS)
+  # - "connectivity"        : On-premise system connectivity
+  # - "event_mesh"          : SAP Event Mesh (real-time events)
+  #
+  # User Experience:
+  # - "workzone"            : SAP Build Work Zone (employee portal)
+  # - "mobile_services"     : SAP Mobile Services (field workforce)
+  # - "document_management" : SAP Document Management (compliance)
+  #
+  # AI & Automation:
+  # - "aicore"              : SAP AI Core (ML training/inference)
+  # - "alert_notification"  : Alert Notification (SLA/threshold alerts)
 }

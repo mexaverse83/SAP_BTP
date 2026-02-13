@@ -6,30 +6,17 @@
 #
 # Then deploy with:
 #   terraform apply -var-file="customers/acme.tfvars"
-#
 # =============================================================================
 
-# Customer Details
 customer_name = "ACME Corp"
-customer_id   = "acme"      # lowercase, no spaces - used in subdomain
+customer_id   = "acme"      # lowercase, hyphens only — used in subdomain
 
-# Optional: Override region for this customer (default: us10)
+# Override region for this customer (default: us10)
 # region = "eu10"
 
-# -----------------------------------------------------------------------------
-# Additional Services
-# -----------------------------------------------------------------------------
-# Add any services this customer needs (beyond the base services).
-# Base services (always included): destination, xsuaa, html5-apps-repo
+# Additional services beyond the base (destination, xsuaa, html5-apps-repo).
+# See variables.tf for the full catalog.
 #
-# Available options:
-#   - "cf_runtime"    : Cloud Foundry runtime
-#   - "hana_cloud"    : SAP HANA Cloud (enterprise only)
-#   - "connectivity"  : On-premise connectivity
-#   - "bas"           : Business Application Studio (enterprise only)
-#   - "workzone"      : SAP Build Work Zone (enterprise only)
-#   - "aicore"        : SAP AI Core (enterprise only)
-#
-# Example:
-# additional_services = ["cf_runtime", "connectivity"]
+# Example for a manufacturing company:
+# additional_services = ["integration_suite", "analytics_cloud", "connectivity"]
 additional_services = []

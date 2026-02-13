@@ -11,8 +11,9 @@ terraform.tfvars
 *.auto.tfvars
 secrets.tf
 
-# Customer configurations (may contain sensitive data)
-customers/*.tfvars
+# Customer configurations
+# Safe to commit — credentials are in HCP Terraform, not in tfvars
+# customers/*.tfvars
 !customers/customer.tfvars.example
 
 # Customer state directories
