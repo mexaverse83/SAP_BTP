@@ -1,41 +1,37 @@
 # =============================================================================
-# SAP BTP + TERRAFORM DEMO
+# SAP BTP + TERRAFORM DEMO — Multi-Customer Onboarding
 # =============================================================================
 #
-# SCENARIO: Automated Customer Onboarding Platform
+# One apply. Multiple customers. Each gets their own isolated subaccount
+# with services tailored to their needs.
 #
-# Nexaminds needs to onboard enterprise customers to SAP BTP.
-# Each customer needs their own isolated environment with:
-# - Integration services for connecting to external systems
-# - Authorization and security configuration
-# - Application hosting capabilities
-# - Proper user roles and permissions
-#
-# Manual setup: 2-4 hours per customer
-# With Terraform: ~2 minutes per customer
+# Manual setup: 2-4 hours PER customer
+# With Terraform: ALL customers in ~2 minutes
 #
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# DATA SOURCES - Read existing account info
+# DATA SOURCES
 # -----------------------------------------------------------------------------
 
 data "btp_globalaccount" "this" {}
 
 # -----------------------------------------------------------------------------
-# STEP 1: Create Customer Subaccount
+# STEP 1: Create Customer Subaccounts
 # -----------------------------------------------------------------------------
 
 resource "btp_subaccount" "customer" {
-  name        = "${var.customer_name} Portal"
-  subdomain   = "${var.customer_id}-portal-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+  for_each = var.customers
+
+  name        = "${each.value.name} Portal"
+  subdomain   = "${each.key}-portal-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   region      = var.region
-  description = "Customer environment for ${var.customer_name} - created by Terraform"
+  description = "Customer environment for ${each.value.name} - created by Terraform"
 
   labels = {
     "managed-by"  = ["terraform"]
     "environment" = ["demo"]
-    "customer"    = [var.customer_id]
+    "customer"    = [each.key]
   }
 
   lifecycle {
@@ -44,52 +40,74 @@ resource "btp_subaccount" "customer" {
 }
 
 # -----------------------------------------------------------------------------
-# STEP 2: Entitle Services
+# STEP 2: Base Service Entitlements (every customer gets these)
 # -----------------------------------------------------------------------------
 
 resource "btp_subaccount_entitlement" "destination" {
-  subaccount_id = btp_subaccount.customer.id
+  for_each      = var.customers
+  subaccount_id = btp_subaccount.customer[each.key].id
   service_name  = "destination"
   plan_name     = "lite"
 }
 
 resource "btp_subaccount_entitlement" "xsuaa" {
-  subaccount_id = btp_subaccount.customer.id
+  for_each      = var.customers
+  subaccount_id = btp_subaccount.customer[each.key].id
   service_name  = "xsuaa"
   plan_name     = "application"
 }
 
 resource "btp_subaccount_entitlement" "html5_repo" {
-  subaccount_id = btp_subaccount.customer.id
+  for_each      = var.customers
+  subaccount_id = btp_subaccount.customer[each.key].id
   service_name  = "html5-apps-repo"
   plan_name     = "app-host"
 }
 
 # -----------------------------------------------------------------------------
-# STEP 3: Create Service Instances
+# STEP 3: Destination Service Instance (per customer)
 # -----------------------------------------------------------------------------
 
 data "btp_subaccount_service_plan" "destination" {
-  subaccount_id = btp_subaccount.customer.id
+  for_each      = var.customers
+  subaccount_id = btp_subaccount.customer[each.key].id
   name          = "lite"
   offering_name = "destination"
   depends_on    = [btp_subaccount_entitlement.destination]
 }
 
 resource "btp_subaccount_service_instance" "destination" {
-  subaccount_id  = btp_subaccount.customer.id
+  for_each       = var.customers
+  subaccount_id  = btp_subaccount.customer[each.key].id
   name           = "destination-instance"
-  serviceplan_id = data.btp_subaccount_service_plan.destination.id
+  serviceplan_id = data.btp_subaccount_service_plan.destination[each.key].id
   depends_on     = [btp_subaccount_entitlement.destination]
 }
 
 # -----------------------------------------------------------------------------
-# OPTIONAL SERVICES (Enable per customer via additional_services variable)
+# STEP 4: Additional Services (per customer, driven by config)
 # -----------------------------------------------------------------------------
 
+locals {
+  # Flatten customer × additional_services into a map for for_each
+  customer_services = merge([
+    for customer_id, customer in var.customers : {
+      for svc in customer.additional_services :
+      "${customer_id}-${svc}" => {
+        customer_id  = customer_id
+        service_key  = svc
+        service_name = local.service_catalog[svc].service_name
+        plan_name    = local.service_catalog[svc].plan_name
+        amount       = local.service_catalog[svc].amount
+      }
+      if contains(keys(local.service_catalog), svc)
+    }
+  ]...)
+}
+
 resource "btp_subaccount_entitlement" "additional" {
-  for_each      = local.enabled_services
-  subaccount_id = btp_subaccount.customer.id
+  for_each      = local.customer_services
+  subaccount_id = btp_subaccount.customer[each.value.customer_id].id
   service_name  = each.value.service_name
   plan_name     = each.value.plan_name
   amount        = each.value.amount

@@ -1,45 +1,45 @@
 # Output values
 
-output "subaccount_info" {
-  description = "Created subaccount details"
+output "subaccounts" {
+  description = "Created subaccount details per customer"
   value = {
-    id        = btp_subaccount.customer.id
-    name      = btp_subaccount.customer.name
-    subdomain = btp_subaccount.customer.subdomain
-    region    = btp_subaccount.customer.region
+    for customer_id, customer in var.customers : customer_id => {
+      id        = btp_subaccount.customer[customer_id].id
+      name      = btp_subaccount.customer[customer_id].name
+      subdomain = btp_subaccount.customer[customer_id].subdomain
+      region    = btp_subaccount.customer[customer_id].region
+      services  = concat(
+        ["destination", "xsuaa", "html5-apps-repo"],
+        customer.additional_services
+      )
+    }
   }
 }
 
-output "services_created" {
-  description = "Services provisioned in the subaccount"
+output "cockpit_urls" {
+  description = "Direct links to each customer subaccount in BTP Cockpit"
   value = {
-    destination_instance = btp_subaccount_service_instance.destination.name
+    for customer_id, customer in var.customers : customer_id =>
+    "https://cockpit.btp.cloud.sap/cockpit/#/globalaccount/${var.globalaccount_subdomain}/subaccount/${btp_subaccount.customer[customer_id].id}"
   }
 }
 
-output "cockpit_url" {
-  description = "Direct link to the subaccount in BTP Cockpit"
-  value       = "https://cockpit.btp.cloud.sap/cockpit/#/globalaccount/${var.globalaccount_subdomain}/subaccount/${btp_subaccount.customer.id}"
-}
-
-output "demo_complete" {
-  description = "Summary of deployed resources"
+output "demo_summary" {
+  description = "Summary of all deployed customer environments"
   value       = <<-EOT
 
   ================================================================
-       ${upper(var.customer_name)} ENVIRONMENT DEPLOYED!
+       CUSTOMER ONBOARDING COMPLETE!
   ================================================================
+  %{for customer_id, customer in var.customers~}
 
-  What Terraform created:
+    ✅ ${customer.name}
+       Services: ${length(customer.additional_services) + 3} (3 base + ${length(customer.additional_services)} additional)
+  %{endfor~}
 
-    1. Customer: ${var.customer_name}
-    2. Subaccount: ${btp_subaccount.customer.name}
-    3. Region: ${btp_subaccount.customer.region}
-    4. Services: Destination, XSUAA, HTML5 Repo (entitled)
-    5. Destination service instance created
-
-  State: Stored in HCP Terraform (Nexaminds org)
-  Time:  ~2 minutes (vs ~2 hours manually)
+  Total customers: ${length(var.customers)}
+  State: HCP Terraform (Nexaminds org)
+  Time:  ~2 minutes (vs ~${length(var.customers) * 3} hours manually)
 
   ================================================================
   EOT

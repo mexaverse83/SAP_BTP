@@ -93,9 +93,5 @@ locals {
     }
   }
 
-  # Filter to only services that exist in the catalog
-  enabled_services = {
-    for svc in var.additional_services : svc => local.service_catalog[svc]
-    if contains(keys(local.service_catalog), svc)
-  }
+  # Note: per-customer service filtering is handled in main.tf locals block
 }

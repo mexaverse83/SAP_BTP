@@ -8,6 +8,7 @@
 # Credentials - NEVER commit these!
 terraform.tfvars
 !terraform.tfvars.example
+!demo.tfvars
 *.auto.tfvars
 secrets.tf
 
