@@ -5,21 +5,15 @@ variable "globalaccount_subdomain" {
   type        = string
 }
 
-variable "btp_username" {
-  description = "SAP BTP username (email)"
-  type        = string
-}
-
-variable "btp_password" {
-  description = "SAP BTP password"
-  type        = string
-  sensitive   = true
-}
-
 variable "region" {
   description = "SAP BTP region"
   type        = string
   default     = "us10"
+
+  validation {
+    condition     = contains(["us10", "eu10", "ap21", "us20", "eu20", "jp10"], var.region)
+    error_message = "Region must be a valid SAP BTP region."
+  }
 }
 
 # Customer-specific Variables
@@ -34,10 +28,14 @@ variable "customer_id" {
   description = "Short customer identifier for subdomain (lowercase, no spaces)"
   type        = string
   default     = "nexaminds"
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]+$", var.customer_id))
+    error_message = "Customer ID must be lowercase alphanumeric with hyphens only."
+  }
 }
 
 # Optional Services (enable per customer)
-# Add service keys to this list to enable them for a customer
 
 variable "additional_services" {
   description = "List of additional services to enable for this customer"
